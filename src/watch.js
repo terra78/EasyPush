@@ -1,0 +1,167 @@
+import { PRODUCTS, WATCH_RULES } from "./config.js";
+import { notifyLine, notifyResendFallback } from "./notifier.js";
+import { parseStockState } from "./stockParser.js";
+import { fetchStatuses, upsertStatuses } from "./supabaseStore.js";
+
+const REQUEST_TIMEOUT_MS = 15_000;
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+async function fetchHtml(url) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (compatible; stock-watch-bot/1.0; +https://github.com/)"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return await response.text();
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function buildNotification(changedItems) {
+  const lines = [
+    "【在庫変化検知】",
+    "",
+    "「在庫確認中」以外へ変化した可能性があります。",
+    "念のためページを開いて確認してください。",
+    ""
+  ];
+
+  for (const item of changedItems) {
+    lines.push(`- ${item.name}`);
+    lines.push(`  URL: ${item.url}`);
+    lines.push(`  判定: ${item.reason}`);
+    lines.push("");
+  }
+
+  lines.push(`検知時刻: ${nowIso()}`);
+  return lines.join("\n");
+}
+
+function toSnapshot(html) {
+  return html.slice(0, 1000);
+}
+
+async function run() {
+  const prevMap = await fetchStatuses(PRODUCTS.map((p) => p.url));
+  const changedForNotification = [];
+  const upsertRows = [];
+
+  for (const product of PRODUCTS) {
+    const previous = prevMap.get(product.url);
+    const checkedAt = nowIso();
+
+    try {
+      const html = await fetchHtml(product.url);
+      const parsed = parseStockState(html);
+
+      const prevState = previous?.last_seen_state ?? null;
+      const prevCount = previous?.stable_non_checking_count ?? 0;
+      const prevNotified = previous?.notified_available ?? false;
+
+      const nextCount =
+        parsed.state === "non_checking"
+          ? prevState === "non_checking"
+            ? prevCount + 1
+            : 1
+          : 0;
+
+      const shouldNotify =
+        parsed.state === "non_checking" &&
+        nextCount >= WATCH_RULES.consecutiveNonCheckingThreshold &&
+        !prevNotified;
+
+      if (shouldNotify) {
+        changedForNotification.push({
+          name: product.name,
+          url: product.url,
+          reason: parsed.reason
+        });
+      }
+
+      upsertRows.push({
+        url: product.url,
+        product_name: product.name,
+        last_seen_state: parsed.state,
+        stable_non_checking_count: nextCount,
+        notified_available: shouldNotify
+          ? true
+          : parsed.state === "checking"
+            ? false
+            : prevNotified,
+        last_reason: parsed.reason,
+        last_snapshot: toSnapshot(html),
+        last_checked_at: checkedAt,
+        last_changed_at: prevState !== parsed.state ? checkedAt : previous?.last_changed_at ?? null,
+        error_count: parsed.state === "checking" || parsed.state === "non_checking"
+          ? 0
+          : (previous?.error_count ?? 0)
+      });
+    } catch (error) {
+      upsertRows.push({
+        url: product.url,
+        product_name: product.name,
+        last_seen_state: previous?.last_seen_state ?? "error",
+        stable_non_checking_count: previous?.stable_non_checking_count ?? 0,
+        notified_available: previous?.notified_available ?? false,
+        last_reason: `error:${error.message}`,
+        last_snapshot: previous?.last_snapshot ?? null,
+        last_checked_at: checkedAt,
+        last_changed_at: previous?.last_changed_at ?? null,
+        error_count: (previous?.error_count ?? 0) + 1
+      });
+    }
+  }
+
+  await upsertStatuses(upsertRows);
+
+  if (changedForNotification.length === 0) {
+    console.log("No state change detected.");
+    return;
+  }
+
+  const message = buildNotification(changedForNotification);
+  const subject = "【在庫変化検知】販売ページの状態が変化";
+
+  let lineError = null;
+  try {
+    await notifyLine(message);
+    console.log("LINE notification sent.");
+  } catch (error) {
+    lineError = error;
+    console.error(`LINE notify error: ${error.message}`);
+  }
+
+  if (lineError) {
+    try {
+      const sent = await notifyResendFallback(subject, message);
+      if (sent) {
+        console.log("Resend fallback notification sent.");
+      } else {
+        throw lineError;
+      }
+    } catch (fallbackError) {
+      throw new Error(
+        `Notification failed. line=${lineError.message}; fallback=${fallbackError.message}`
+      );
+    }
+  }
+}
+
+run().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

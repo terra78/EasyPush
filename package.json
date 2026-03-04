@@ -1,0 +1,13 @@
+{
+  "name": "stock-watch-notifier",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Watch product pages and notify when stock status changes.",
+  "type": "module",
+  "scripts": {
+    "watch": "node src/watch.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
