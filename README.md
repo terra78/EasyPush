@@ -12,7 +12,7 @@
 
 1. ページ本文に `在庫確認中` がある -> `checking`
 2. `在庫確認中` がない -> `non_checking`（販売開始候補）
-3. 一時的なHTMLゆらぎ対策として、`non_checking` を2回連続検知したら通知
+3. `non_checking` を1回検知した時点で通知（誤検知許容の即時通知設定）
 4. リング2商品は `13` サイズ行を優先判定（他サイズの `在庫確認中` は無視）
 
 ## 事前準備
@@ -119,11 +119,11 @@ python3 -m http.server 4173 --directory mock-pages/live-mirror
 
 ## 通知仕様
 
-- 通知条件: `checking -> non_checking` への変化を2回連続で確認
+- 通知条件: `checking -> non_checking` を1回検知したら通知
 - 通知先: `line_recipients` の `is_active=true` 全員
 - 重複抑止: `notified_available=true` の間は再通知しない
 - 状態が `checking` に戻ったら通知フラグをリセット
-- 通知本文には対象販売ページURL（全件）を常に掲載
+- 通知本文には検知した商品のURLのみ掲載
 
 ## 対象商品
 

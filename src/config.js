@@ -47,5 +47,5 @@ export const WATCH_RULES = {
     "SOLD OUT",
     "在庫切れ"
   ],
-  consecutiveNonCheckingThreshold: 2
+  consecutiveNonCheckingThreshold: 1
 };
