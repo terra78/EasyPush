@@ -1,10 +1,10 @@
 # 在庫監視通知（LINE優先 / メール最終手段）
 
-対象ページを10分おきに確認し、`在庫確認中` が消えたときに通知します。
+対象ページを5分おきに確認し、`在庫確認中` が消えたときに通知します。
 
 ## 構成
 
-- 実行: GitHub Actions（10分ごと）
+- 実行: GitHub Actions（5分ごと）
 - 状態保存: Supabase（`product_watch_status`）
 - 通知: LINE Messaging API（通知先はSupabase管理、失敗時のみResendメール）
 
@@ -71,7 +71,7 @@ npm run watch
 
 GitHub Actions:
 
-- [`stock-watch.yml`](.github/workflows/stock-watch.yml) が10分間隔で自動実行
+- [`stock-watch.yml`](.github/workflows/stock-watch.yml) が5分間隔で自動実行
 - Actions画面から `workflow_dispatch` で手動実行も可能
 - 手動実行時に `force_test_notification=true` を指定すると、在庫変化がなくてもテスト通知を送信
 

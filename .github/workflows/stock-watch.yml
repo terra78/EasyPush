@@ -2,7 +2,7 @@ name: Stock Watch
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       force_test_notification:
