@@ -100,6 +100,23 @@ PRODUCTS_JSON='[{"name":"mock-variant-13","url":"http://127.0.0.1:4173/variant-a
 
 上記2回目で通知が届けば、検知から通知までの経路確認完了です。
 
+### 本番ページに近いローカルミラーを作る
+
+公開せずローカル限定で、本番ページ（HTML/CSS/JS）に近いミラーを作る場合:
+
+```bash
+cd /Users/tera78/workspace/EasyPush
+npm run mock:build
+python3 -m http.server 4173 --directory mock-pages/live-mirror
+```
+
+生成されるページ:
+
+- `http://127.0.0.1:4173/variant-checking.html`
+- `http://127.0.0.1:4173/variant-available.html`
+- `http://127.0.0.1:4173/product-checking.html`
+- `http://127.0.0.1:4173/product-available.html`
+
 ## 通知仕様
 
 - 通知条件: `checking -> non_checking` への変化を2回連続で確認

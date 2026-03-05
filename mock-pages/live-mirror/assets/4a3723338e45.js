@@ -1,0 +1,2 @@
+(function(){function isMobile(){let userAgent=window.navigator.userAgent.toLowerCase(),regexp=/android|webos|iphone|ipad|ipod|blackberry|mobile|iemobile|opera mini/i;return userAgent.search(regexp)!=-1}if(isMobile()){const links=document.links;for(let i=0,linksLength=links.length;i<linksLength;i++)links[i].hostname!==window.location.hostname&&(links[i].target="_self",links[i].rel="")}})();
+//# sourceMappingURL=/cdn/shop/t/18/assets/prevent_blank.js.map?v=29838729664869514431772412472

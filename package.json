@@ -5,7 +5,8 @@
   "description": "Watch product pages and notify when stock status changes.",
   "type": "module",
   "scripts": {
-    "watch": "node src/watch.js"
+    "watch": "node src/watch.js",
+    "mock:build": "node scripts/build-local-mock.js"
   },
   "engines": {
     "node": ">=20.0.0"
