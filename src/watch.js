@@ -13,6 +13,35 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function getProductsFromEnv() {
+  const raw = process.env.PRODUCTS_JSON;
+  if (!raw) {
+    return PRODUCTS;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      throw new Error("PRODUCTS_JSON must be a non-empty array.");
+    }
+    return parsed;
+  } catch (error) {
+    throw new Error(`Invalid PRODUCTS_JSON: ${error.message}`);
+  }
+}
+
+function getConsecutiveThreshold() {
+  const raw = process.env.CONSECUTIVE_NON_CHECKING_THRESHOLD;
+  if (!raw) {
+    return WATCH_RULES.consecutiveNonCheckingThreshold;
+  }
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error("CONSECUTIVE_NON_CHECKING_THRESHOLD must be integer >= 1.");
+  }
+  return parsed;
+}
+
 async function fetchHtml(url) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -67,11 +96,13 @@ function toSnapshot(html) {
 
 async function run() {
   const forceTest = process.env.FORCE_TEST_NOTIFICATION === "true";
-  const prevMap = await fetchStatuses(PRODUCTS.map((p) => p.url));
+  const products = getProductsFromEnv();
+  const threshold = getConsecutiveThreshold();
+  const prevMap = await fetchStatuses(products.map((p) => p.url));
   const changedForNotification = [];
   const upsertRows = [];
 
-  for (const product of PRODUCTS) {
+  for (const product of products) {
     const previous = prevMap.get(product.url);
     const checkedAt = nowIso();
 
@@ -92,7 +123,7 @@ async function run() {
 
       const shouldNotify =
         parsed.state === "non_checking" &&
-        nextCount >= WATCH_RULES.consecutiveNonCheckingThreshold &&
+        nextCount >= threshold &&
         !prevNotified;
 
       if (shouldNotify) {

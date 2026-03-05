@@ -75,6 +75,31 @@ GitHub Actions:
 - Actions画面から `workflow_dispatch` で手動実行も可能
 - 手動実行時に `force_test_notification=true` を指定すると、在庫変化がなくてもテスト通知を送信
 
+## 検知ロジックのローカル実機テスト
+
+モックページを使って、実際の「状態変化検知」を試せます。
+
+1. ローカルサーバー起動
+
+```bash
+cd /Users/tera78/workspace/EasyPush
+python3 -m http.server 4173 --directory mock-pages
+```
+
+2. 初回（未販売状態）実行
+
+```bash
+PRODUCTS_JSON='[{"name":"mock-variant-13","url":"http://127.0.0.1:4173/variant-checking.html","watchMode":"variant_size","targetSize":"13"},{"name":"mock-product","url":"http://127.0.0.1:4173/product-checking.html","watchMode":"product"}]' npm run watch
+```
+
+3. 販売開始想定へ切り替えて実行
+
+```bash
+PRODUCTS_JSON='[{"name":"mock-variant-13","url":"http://127.0.0.1:4173/variant-available.html","watchMode":"variant_size","targetSize":"13"},{"name":"mock-product","url":"http://127.0.0.1:4173/product-available.html","watchMode":"product"}]' CONSECUTIVE_NON_CHECKING_THRESHOLD=1 npm run watch
+```
+
+上記2回目で通知が届けば、検知から通知までの経路確認完了です。
+
 ## 通知仕様
 
 - 通知条件: `checking -> non_checking` への変化を2回連続で確認
