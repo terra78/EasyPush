@@ -43,22 +43,16 @@ function buildNotification(changedItems) {
     isTest
       ? "これはテスト通知です。実際の在庫変化ではありません。"
       : "「在庫確認中」以外へ変化した可能性があります。",
-    "販売ページURL:",
+    "",
+    isTest ? "検知結果（テスト）:" : "検知結果:",
     ""
   ];
 
-  for (const product of PRODUCTS) {
-    lines.push(`- ${product.name}`);
-    lines.push(`  URL: ${product.url}`);
-  }
-
-  lines.push("");
-  lines.push(isTest ? "検知結果（テスト）:" : "検知結果:");
-  lines.push("");
-
   for (const item of changedItems) {
     lines.push(`- ${item.name}`);
-    lines.push(`  URL: ${item.url}`);
+    if (item.url) {
+      lines.push(`  URL: ${item.url}`);
+    }
     lines.push(`  判定: ${item.reason}`);
     lines.push("");
   }
@@ -83,7 +77,7 @@ async function run() {
 
     try {
       const html = await fetchHtml(product.url);
-      const parsed = parseStockState(html);
+      const parsed = parseStockState(html, product);
 
       const prevState = previous?.last_seen_state ?? null;
       const prevCount = previous?.stable_non_checking_count ?? 0;
@@ -151,13 +145,10 @@ async function run() {
   }
 
   if (changedForNotification.length === 0 && forceTest) {
-    for (const product of PRODUCTS) {
-      changedForNotification.push({
-        name: product.name,
-        url: product.url,
-        reason: "forced:test_notification"
-      });
-    }
+    changedForNotification.push({
+      name: "テスト通知（検知商品なし）",
+      reason: "forced:test_notification"
+    });
   }
 
   const message = buildNotification(changedForNotification);
