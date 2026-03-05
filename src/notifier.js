@@ -12,32 +12,51 @@ function splitMessage(message, maxLen = 4500) {
   return chunks;
 }
 
-export async function notifyLine(message) {
+export async function notifyLine(message, recipients) {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-  const to = process.env.LINE_TARGET_USER_ID;
-  if (!token || !to) {
-    throw new Error("LINE env is not configured.");
+  if (!token) {
+    throw new Error("LINE_CHANNEL_ACCESS_TOKEN is not configured.");
+  }
+  if (!Array.isArray(recipients) || recipients.length === 0) {
+    throw new Error("No LINE recipients found in database.");
   }
 
   const chunks = splitMessage(message);
-  for (const text of chunks) {
-    const response = await fetch("https://api.line.me/v2/bot/message/push", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        to,
-        messages: [{ type: "text", text }]
-      })
-    });
+  let successCount = 0;
+  const failures = [];
 
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`LINE notify failed: ${response.status} ${body}`);
+  for (const recipient of recipients) {
+    let recipientFailed = false;
+
+    for (const text of chunks) {
+      const response = await fetch("https://api.line.me/v2/bot/message/push", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          to: recipient.line_user_id,
+          messages: [{ type: "text", text }]
+        })
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        failures.push(
+          `${recipient.display_name ?? recipient.line_user_id}: ${response.status} ${body}`
+        );
+        recipientFailed = true;
+        break;
+      }
+    }
+
+    if (!recipientFailed) {
+      successCount += 1;
     }
   }
+
+  return { successCount, failureCount: failures.length, failures };
 }
 
 export async function notifyResendFallback(subject, message) {

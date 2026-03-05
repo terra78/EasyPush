@@ -6,7 +6,7 @@
 
 - 実行: GitHub Actions（10分ごと）
 - 状態保存: Supabase（`product_watch_status`）
-- 通知: LINE Messaging API（失敗時のみResendメール）
+- 通知: LINE Messaging API（通知先はSupabase管理、失敗時のみResendメール）
 
 ## 判定ルール
 
@@ -19,17 +19,27 @@
 ### 1) Supabaseテーブル作成
 
 Supabase SQL Editor で [`supabase/schema.sql`](supabase/schema.sql) を実行してください。
+`line_recipients` テーブルも同時に作成されます。
 
 ### 2) LINE Messaging API準備
 
 1. LINE Developers で Messaging API チャネルを作成
 2. チャネルアクセストークン（長期）を発行
 3. 通知先ユーザーの `userId` を取得（Webhook経由など）
+4. `line_recipients` に通知先を登録
+
+例:
+
+```sql
+insert into public.line_recipients (line_user_id, display_name, is_active)
+values
+  ('Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'my-main-account', true),
+  ('Uyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy', 'sub-account', true);
+```
 
 GitHub Secrets に以下を設定します。
 
 - `LINE_CHANNEL_ACCESS_TOKEN`
-- `LINE_TARGET_USER_ID`
 
 ### 3) （任意）メールフォールバック
 
@@ -47,7 +57,6 @@ LINE送信失敗時だけメール通知を使う場合:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `LINE_CHANNEL_ACCESS_TOKEN`
-- `LINE_TARGET_USER_ID`
 
 ## 実行
 
@@ -67,6 +76,7 @@ GitHub Actions:
 ## 通知仕様
 
 - 通知条件: `checking -> non_checking` への変化を2回連続で確認
+- 通知先: `line_recipients` の `is_active=true` 全員
 - 重複抑止: `notified_available=true` の間は再通知しない
 - 状態が `checking` に戻ったら通知フラグをリセット
 

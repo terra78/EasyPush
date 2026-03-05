@@ -1,4 +1,5 @@
-const TABLE_NAME = "product_watch_status";
+const STATUS_TABLE_NAME = "product_watch_status";
+const RECIPIENTS_TABLE_NAME = "line_recipients";
 
 function assertEnv(name) {
   const value = process.env[name];
@@ -17,9 +18,9 @@ function getHeaders() {
   };
 }
 
-function getBaseUrl() {
+function getTableUrl(tableName) {
   const base = assertEnv("SUPABASE_URL");
-  return `${base}/rest/v1/${TABLE_NAME}`;
+  return `${base}/rest/v1/${tableName}`;
 }
 
 export async function fetchStatuses(urls) {
@@ -29,7 +30,7 @@ export async function fetchStatuses(urls) {
 
   const inClause = urls.map((url) => `"${url}"`).join(",");
   const endpoint =
-    `${getBaseUrl()}?select=*` +
+    `${getTableUrl(STATUS_TABLE_NAME)}?select=*` +
     `&url=in.(${encodeURIComponent(inClause)})`;
 
   const response = await fetch(endpoint, { headers: getHeaders() });
@@ -51,7 +52,7 @@ export async function upsertStatuses(rows) {
     return;
   }
 
-  const endpoint = `${getBaseUrl()}?on_conflict=url`;
+  const endpoint = `${getTableUrl(STATUS_TABLE_NAME)}?on_conflict=url`;
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -65,4 +66,19 @@ export async function upsertStatuses(rows) {
     const body = await response.text();
     throw new Error(`Supabase upsert failed: ${response.status} ${body}`);
   }
+}
+
+export async function fetchActiveLineRecipients() {
+  const endpoint =
+    `${getTableUrl(RECIPIENTS_TABLE_NAME)}?select=line_user_id,display_name` +
+    "&is_active=eq.true";
+
+  const response = await fetch(endpoint, { headers: getHeaders() });
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Supabase recipients fetch failed: ${response.status} ${body}`);
+  }
+
+  const rows = await response.json();
+  return rows.filter((row) => row.line_user_id && String(row.line_user_id).trim().length > 0);
 }

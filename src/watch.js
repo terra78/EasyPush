@@ -1,7 +1,11 @@
 import { PRODUCTS, WATCH_RULES } from "./config.js";
 import { notifyLine, notifyResendFallback } from "./notifier.js";
 import { parseStockState } from "./stockParser.js";
-import { fetchStatuses, upsertStatuses } from "./supabaseStore.js";
+import {
+  fetchActiveLineRecipients,
+  fetchStatuses,
+  upsertStatuses
+} from "./supabaseStore.js";
 
 const REQUEST_TIMEOUT_MS = 15_000;
 
@@ -135,11 +139,18 @@ async function run() {
 
   const message = buildNotification(changedForNotification);
   const subject = "【在庫変化検知】販売ページの状態が変化";
+  const recipients = await fetchActiveLineRecipients();
 
   let lineError = null;
   try {
-    await notifyLine(message);
-    console.log("LINE notification sent.");
+    const lineResult = await notifyLine(message, recipients);
+    if (lineResult.successCount === 0) {
+      throw new Error(`No LINE recipient succeeded. details=${lineResult.failures.join(" | ")}`);
+    }
+    if (lineResult.failureCount > 0) {
+      console.error(`Partial LINE failure: ${lineResult.failures.join(" | ")}`);
+    }
+    console.log(`LINE notification sent to ${lineResult.successCount} recipients.`);
   } catch (error) {
     lineError = error;
     console.error(`LINE notify error: ${error.message}`);
