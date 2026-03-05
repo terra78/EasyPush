@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { PRODUCTS, WATCH_RULES } from "./config.js";
 import { notifyLine, notifyResendFallback } from "./notifier.js";
 import { parseStockState } from "./stockParser.js";
