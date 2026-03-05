@@ -72,6 +72,7 @@ GitHub Actions:
 
 - [`stock-watch.yml`](.github/workflows/stock-watch.yml) が10分間隔で自動実行
 - Actions画面から `workflow_dispatch` で手動実行も可能
+- 手動実行時に `force_test_notification=true` を指定すると、在庫変化がなくてもテスト通知を送信
 
 ## 通知仕様
 
@@ -79,6 +80,7 @@ GitHub Actions:
 - 通知先: `line_recipients` の `is_active=true` 全員
 - 重複抑止: `notified_available=true` の間は再通知しない
 - 状態が `checking` に戻ったら通知フラグをリセット
+- 通知本文には対象販売ページURL（全件）を常に掲載
 
 ## 対象商品
 

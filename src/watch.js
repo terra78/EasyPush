@@ -36,13 +36,25 @@ async function fetchHtml(url) {
 }
 
 function buildNotification(changedItems) {
+  const isTest = process.env.FORCE_TEST_NOTIFICATION === "true";
   const lines = [
-    "【在庫変化検知】",
+    isTest ? "【テスト通知】在庫監視の疎通確認" : "【在庫変化検知】",
     "",
-    "「在庫確認中」以外へ変化した可能性があります。",
-    "念のためページを開いて確認してください。",
+    isTest
+      ? "これはテスト通知です。実際の在庫変化ではありません。"
+      : "「在庫確認中」以外へ変化した可能性があります。",
+    "販売ページURL:",
     ""
   ];
+
+  for (const product of PRODUCTS) {
+    lines.push(`- ${product.name}`);
+    lines.push(`  URL: ${product.url}`);
+  }
+
+  lines.push("");
+  lines.push(isTest ? "検知結果（テスト）:" : "検知結果:");
+  lines.push("");
 
   for (const item of changedItems) {
     lines.push(`- ${item.name}`);
@@ -60,6 +72,7 @@ function toSnapshot(html) {
 }
 
 async function run() {
+  const forceTest = process.env.FORCE_TEST_NOTIFICATION === "true";
   const prevMap = await fetchStatuses(PRODUCTS.map((p) => p.url));
   const changedForNotification = [];
   const upsertRows = [];
@@ -132,9 +145,19 @@ async function run() {
 
   await upsertStatuses(upsertRows);
 
-  if (changedForNotification.length === 0) {
+  if (changedForNotification.length === 0 && !forceTest) {
     console.log("No state change detected.");
     return;
+  }
+
+  if (changedForNotification.length === 0 && forceTest) {
+    for (const product of PRODUCTS) {
+      changedForNotification.push({
+        name: product.name,
+        url: product.url,
+        reason: "forced:test_notification"
+      });
+    }
   }
 
   const message = buildNotification(changedForNotification);
